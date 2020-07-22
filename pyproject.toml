@@ -4,9 +4,15 @@ version = "0.1.0"
 description = ""
 authors = ["Ken Monteith <kgmonteith@gmail.com>"]
 
+include = ["README.md", "templates"]
+
+[tool.poetry.scripts]
+formulanein = "formulanein:main"
+
 [tool.poetry.dependencies]
 python = "^3.8"
 requests = "^2.24.0"
+jinja2 = "^2.11.2"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"

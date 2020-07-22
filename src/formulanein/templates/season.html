@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <link href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <title>Formula Nein {{ season }}</title>
+
+    <style>
+    body {
+        padding-top: 1rem;
+    }
+    .starter-template {
+        padding: 3rem 1.5rem;
+        text-align: center;
+    }
+    .row {
+        margin-bottom: 1rem;
+    }
+    .row .row {
+        margin-top: 1rem;
+        margin-bottom: 0;
+    }
+    [class*="col-"] {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+    }
+    hr {
+        margin-top: 2rem;
+        margin-bottom: 2rem;
+    }
+    .mercedes {
+        background-color: #00D2BE;
+        color: black;
+    }
+    .red_bull {
+        background-color: #0600ef;
+        color: white;
+    }
+    .mclaren {
+        background-color: #FF8700;
+        color: black;
+    }
+    .racing_point {
+        background-color: #F596C8;
+        color: black;
+    }
+    .ferrari {
+        background-color: #DC0000;
+        color: black;
+    }
+    .renault {
+        background-color: #FFF500;
+        color: black;
+    }
+    .alphatauri, .toro_rosso {
+        background-color: rgb(10, 40 ,64)	;
+        color: white;
+    }
+    .alfa {
+        background-color: #960000;
+        color: white;
+    }
+    .haas {
+        background-color: #787878;
+        color: white;
+    }
+    .williams {
+        background-color: #0082fa;
+        color: white;
+    }
+    </style>
+  </head>
+  <body>
+    <main role="main" class="container">
+        <div class="starter-template">
+          <h1>Formula Nein {{season}} &mdash; <i class="fa fa-flag-checkered"></i> F1 without Mercedes</h1>
+        </div>
+
+        <h4>Fantasy standings after the {{races[-1].raceName}}</h4>
+        <div class="row">
+            <div class="col-md-8">
+                <h6>Drivers</h6>
+                <table class="table table-sm">
+                    <tbody>
+                      {% for standing in driver_standings %}
+                      <tr class="{{ standing.constructorId }}">
+                        <th scope="row">{{ standing.name }}</th>
+                        <td>{{ standing.constructor }}</td>
+                        <td>{% for i in range(standing.wins) %}<i class="fa fa-trophy"></i> {% endfor %}</td>
+                        <th scope="row">{{ standing.points }}</th>
+                      {% endfor %}
+                      </tr>
+                    </tbody>
+                  </table>
+            </div>
+            <div class="col-md-1"></div>
+            <div class="col-md-3">
+                <h6>Constructors</h6>
+                <table class="table">
+                    <tbody>
+                      {% for standing in constructor_standings %}
+                      <tr class="{{ standing.constructorId }}">
+                        <th scope="row">{{ standing.name }}</th>
+                        <th scope="row">{{ standing.points }}</th>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+            </div>
+          </div>
+
+        <hr/>
+          
+        {% for race in races %}
+        <div class="row">
+            <div class="col-md-{{ loop.cycle(0,1,2,3,4,5,6)}}">
+            </div>
+            <div class="col-md-6">
+                <h4>{{ race.raceName }} &mdash; Race {{ loop.index }}</h4>
+                <table class="table table-sm">
+                    <tbody>
+                    {% for result in race.Results %}
+                    <tr class="{{ result.Constructor.constructorId }}">
+                        <th scope="row">{{ result.position }}</th>
+                        <td>{{ result.Driver.familyName }}</td>
+                        <td>{{ result.Constructor.name }}</td>
+                        <td>{{ result.points }}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="col-md-{{ loop.cycle(6,5,4,3,2,1)}}">
+            </div>
+        </div>
+        {% endfor %}
+
+        <hr/>
+
+        <p>Points are calculated using 2019 scoring rules.</p>
+        <p>Data provided by <a href="https://ergast.com/mrd/">Ergast</a>. View this project on <a href="https://github.com/kgmonteith/formulanein">Github</a>.</p>
+  
+      </main><!-- /.container -->
+  
+      <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+      <script>window.jQuery || document.write('<script src="../../assets/js/vendor/jquery-slim.min.js"><\/script>')</script>
+  </body>
+</html>

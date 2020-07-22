@@ -3,39 +3,75 @@ __version__ = "0.1.0"
 from collections import namedtuple
 from dataclasses import dataclass
 from typing import Dict, List
+import json
+import jinja2
 import requests
 import pprint
+import sys
 
 POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1]
-
+CACHE_FILE_TEMPLATE = "/tmp/formulanein_{}.json"
+HTML_FILE_TEMPLATE = "/tmp/{}.html"
 
 @dataclass
 class Standing:
     name: str
+    constructorId: str
     constructor: str
     points: int = 0
     wins: int = 0
     podiums: int = 0
 
 
-def collect_season(season: int) -> List:
-    # Query results for a season, race by race (to avoid pagination)
+def collect_season(season: int, reload_cache: bool = False) -> List:
+    if reload_cache:
+        # Force update from ergast
+        return update_cache_from_ergast(season)
+    else:
+        # Try to use local cache, update from ergast if required
+        try: 
+            return load_season_from_cache(season)
+        except:
+            return update_cache_from_ergast(season)
+
+
+def update_cache_from_ergast(season: int) -> List:
+    # Attempt to query ergast for race results, race-by-race
     races = []
-    while len(races) < 50:  # Don't enumerate forever, just in case
+    while len(races) < 30:  # Don't enumerate forever, just in case
         url = "https://ergast.com/api/f1/{}/{}/results.json".format(
             season, len(races) + 1
         )
-        result = requests.get(url, params={"limit": 50}).json()
+        response = requests.get(url, params={"limit": 50})
+        if response.status_code != 200:
+            raise RuntimeError("Unable to query ergast, error code {}".format(response.status_code))
+        result = response.json()
         if not result["MRData"]["RaceTable"]["Races"]:
             break
         races.append(result["MRData"]["RaceTable"]["Races"][0])
+    # Save races to local cache
+    cache_filename = CACHE_FILE_TEMPLATE.format(season)
+    with open(cache_filename, "w") as cache_fh:
+        json.dump(races, cache_fh)
+    return races
+
+def load_season_from_cache(season: int) -> List:
+    # Load season race data from the local cache
+    cache_filename = CACHE_FILE_TEMPLATE.format(season)
+    races = []
+    try:
+        with open(cache_filename, "r") as cache_fh:
+            races = json.load(cache_fh)
+    except:
+        # Cache not found, bail out
+        raise RuntimeError("Unable to load races from cache")
     return races
 
 
 def simulate_season(
-    season: int, ignore_drivers: list = [], ignore_constructors: list = []
+    season: int, ignore_drivers: list = [], ignore_constructors: list = [], reload_cache: bool = False
 ) -> List:
-    races = collect_season(season)
+    races = collect_season(season, reload_cache=reload_cache)
     for race in races:
         race = simulate_race(
             race, ignore_drivers=ignore_drivers, ignore_constructors=ignore_constructors
@@ -107,6 +143,7 @@ def aggregate_standings(races: List) -> Dict:
                 driver_standings[driverId] = Standing(
                     name=result["Driver"]["familyName"],
                     constructor=result["Constructor"]["name"],
+                    constructorId=result["Constructor"]["constructorId"],
                 )
             driver_standings[driverId].points += result["points"]
             driver_standings[driverId].wins += result.get("win", 0)
@@ -115,10 +152,20 @@ def aggregate_standings(races: List) -> Dict:
             constructor = result["Constructor"]["name"]
             if not constructor in constructor_standings:
                 constructor_standings[constructor] = Standing(
-                    name=constructor, constructor=constructor
+                    name=constructor, constructor=constructor, constructorId=result["Constructor"]["constructorId"]
                 )
             constructor_standings[constructor].points += result["points"]
-    return (driver_standings, constructor_standings)
+    # Sort standings by point totals
+    sorted_driver_standings = sorted(
+        driver_standings.values(), key=lambda x: x.points, reverse=True
+    )
+    sorted_constructor_standings = sorted(
+        constructor_standings.values(), key=lambda x: x.points, reverse=True
+    )
+    return (
+        sorted_driver_standings, 
+        sorted_constructor_standings
+    )
 
 
 def print_season(races: List) -> None:
@@ -139,9 +186,7 @@ def print_driver_standings(driver_standings: Dict, season: int) -> None:
     print("=" * len(title))
     template = "{:<20} {:<20} {:<8} {:<7} {:<8}"
     print(template.format("Driver", "Team", "Points", "Wins", "Podiums"))
-    for standing in sorted(
-        driver_standings.values(), key=lambda x: x.points, reverse=True
-    ):
+    for standing in driver_standings:
         print(
             template.format(
                 standing.name,
@@ -159,9 +204,7 @@ def print_constructor_standings(constructor_standings: Dict, season: int) -> Non
     print("=" * len(title))
     template = "{:<20} {:<8}"
     print(template.format("Team", "Points"))
-    for standing in sorted(
-        constructor_standings.values(), key=lambda x: x.points, reverse=True
-    ):
+    for standing in constructor_standings:
         print(template.format(standing.constructor, standing.points))
 
 
@@ -181,12 +224,21 @@ def print_race(race: Dict) -> None:
             )
         )
 
+def generate_html(races: List) -> None:
+    template_env = jinja2.Environment(loader=jinja2.PackageLoader("formulanein", "templates"))
+    template = template_env.get_template("season.html")
+    season = races[0]["season"]
+    (driver_standings, constructor_standings) = aggregate_standings(races)
+    output = template.render(season=season, races=races, driver_standings=driver_standings, constructor_standings=constructor_standings)
+    with open(HTML_FILE_TEMPLATE.format(season), "w") as html_fh:
+        html_fh.write(output)
+    
 
-def entrypoint():
-    races = simulate_season(2020, ignore_constructors=["mercedes"])
+def main():
+    races = simulate_season(2019, ignore_constructors=["mercedes"])
     # res = simulate_race(2020, 4, ignore_constructors="red_bull")
-    print_season(races)
+    generate_html(races)
 
 
 if __name__ == "__main__":
-    entrypoint()
+    main()
